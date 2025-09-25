@@ -122,7 +122,7 @@ O projeto já inclui um `.gitignore` configurado que ignora:
 data/
 backups/
 logs/
-
+ 
 # Credenciais do Cloudflare
 .cloudflared/
 
