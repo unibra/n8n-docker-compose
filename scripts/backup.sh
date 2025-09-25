@@ -37,7 +37,7 @@ print_message "Iniciando backup do N8N - $DATE"
 
 # Backup do banco PostgreSQL
 print_message "Fazendo backup do PostgreSQL..."
-docker-compose exec -T postgres pg_dump -U $POSTGRES_USER -d $POSTGRES_DB > "$BACKUP_DIR/${BACKUP_NAME}_postgres.sql"
+$DOCKER_COMPOSE_CMD exec -T postgres pg_dump -U $POSTGRES_USER -d $POSTGRES_DB > "$BACKUP_DIR/${BACKUP_NAME}_postgres.sql"
 
 # Backup dos dados do N8N
 print_message "Fazendo backup dos dados do N8N..."

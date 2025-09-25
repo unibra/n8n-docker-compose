@@ -243,6 +243,9 @@ full_report() {
 main() {
     source .env 2>/dev/null || true
     
+    # Detectar comando Docker Compose
+    detect_docker_compose
+    
     if [[ $# -eq 0 ]]; then
         while true; do
             show_menu

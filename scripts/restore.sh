@@ -77,7 +77,7 @@ confirm_restore() {
 # Parar serviços
 stop_services() {
     print_message "Parando serviços..."
-    docker-compose down
+    $DOCKER_COMPOSE_CMD down
 }
 
 # Fazer backup dos dados atuais

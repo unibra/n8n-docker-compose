@@ -186,7 +186,7 @@ main() {
     print_message ""
     print_message "Próximos passos:"
     print_message "1. Configure o token do Cloudflare Tunnel no arquivo .env"
-    print_message "2. Execute: docker-compose up -d"
+    print_message "2. Execute: $DOCKER_COMPOSE_CMD up -d"
     print_message "3. Acesse: https://n8n.giacomo.dev.br"
     print_message ""
     print_warning "IMPORTANTE: Guarde as chaves geradas em local seguro!"
