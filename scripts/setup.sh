@@ -14,6 +14,22 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Detectar qual comando Docker Compose usar
+DOCKER_COMPOSE_CMD=""
+
+detect_docker_compose() {
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    elif docker compose version &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        print_error "Docker Compose não está disponível"
+        print_error "Instale Docker Compose ou use Docker com plugin compose"
+        exit 1
+    fi
+    print_message "Usando comando: $DOCKER_COMPOSE_CMD"
+}
+
 # Função para exibir mensagens
 print_message() {
     echo -e "${GREEN}[INFO]${NC} $1"
