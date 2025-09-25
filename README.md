@@ -61,7 +61,7 @@ Este projeto fornece uma configuração completa do N8N para ambiente de produç
 
 ```bash
 # 1. Clone o projeto
-git clone <repositorio>
+git clone https://github.com/seu-usuario/n8n-production.git
 cd n8n-production
 
 # 2. Configure as variáveis de ambiente
@@ -73,7 +73,9 @@ chmod +x scripts/setup.sh
 ./scripts/setup.sh
 
 # 4. Inicie os serviços
-docker-compose up -d
+# Detecta automaticamente docker-compose ou docker compose
+chmod +x scripts/*.sh
+./scripts/setup.sh
 
 # 5. Verifique o status
 ./scripts/monitor.sh --status
@@ -133,19 +135,19 @@ openssl rand -hex 64
 
 ```bash
 # Iniciar todos os serviços
-docker-compose up -d
+docker compose up -d  # ou docker-compose up -d (auto-detectado pelos scripts)
 
 # Parar todos os serviços  
-docker-compose down
+docker compose down
 
 # Reiniciar um serviço específico
-docker-compose restart n8n
+docker compose restart n8n
 
 # Ver logs de um serviço
-docker-compose logs -f n8n
+docker compose logs -f n8n
 
 # Status de todos os containers
-docker-compose ps
+docker compose ps
 ```
 
 ### Scripts de Administração

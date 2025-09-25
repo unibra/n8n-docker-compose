@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Detectar comando Docker Compose
+DOCKER_COMPOSE_CMD=""
+
+detect_docker_compose() {
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    elif docker compose version &> /dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        echo "❌ Docker Compose não está disponível"
+        exit 1
+    fi
+}
+
 # ==============================================
 # SCRIPT DE BACKUP AUTOMÁTICO - N8N PRODUÇÃO
 # ==============================================
@@ -32,6 +46,10 @@ print_error() {
 
 # Criar diretório de backup
 mkdir -p "$BACKUP_DIR"
+
+# Detectar Docker Compose e carregar variáveis
+detect_docker_compose
+source .env 2>/dev/null || { print_error "Arquivo .env não encontrado!"; exit 1; }
 
 print_message "Iniciando backup do N8N - $DATE"
 

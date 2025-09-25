@@ -160,12 +160,15 @@ generate_security_keys() {
 init_database() {
     print_message "Inicializando banco de dados..."
     
+    # Carregar variáveis de ambiente
+    source .env
+    
     # Subir apenas o PostgreSQL primeiro
-    docker-compose up -d postgres
+    $DOCKER_COMPOSE_CMD up -d postgres
     
     # Aguardar PostgreSQL ficar pronto
     print_message "Aguardando PostgreSQL ficar pronto..."
-    until docker-compose exec -T postgres pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do
+    until $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do
         sleep 2
     done
     

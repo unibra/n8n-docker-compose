@@ -1,6 +1,22 @@
 #!/bin/bash
 
 # ==============================================
+# DETECTAR COMANDO DOCKER COMPOSE
+# ==============================================
+DOCKER_COMPOSE_CMD=""
+
+detect_docker_compose() {
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    elif docker compose version &> /dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        print_error "Docker Compose não está disponível"
+        exit 1
+    fi
+}
+
+# ==============================================
 # SCRIPT DE CONFIGURAÇÃO CLOUDFLARE TUNNEL - API TOKEN
 # ==============================================
 
@@ -42,6 +58,9 @@ ENV_FILE=".env"
 # Verificar variáveis de ambiente necessárias
 check_env_variables() {
     print_message "Verificando variáveis de ambiente..."
+    
+    # Detectar comando Docker Compose
+    detect_docker_compose
     
     # Debug
     echo "Verificando arquivo .env..."

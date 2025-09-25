@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# Detectar comando Docker Compose
+DOCKER_COMPOSE_CMD=""
+
+detect_docker_compose() {
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    elif docker compose version &> /dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        echo "❌ Docker Compose não está disponível"
+        exit 1
+    fi
+}
+
 # ==============================================
 # SCRIPT DE RESTORE - N8N PRODUÇÃO
 # ==============================================
@@ -132,7 +146,7 @@ restore_database() {
 # Iniciar todos os serviços
 start_services() {
     print_message "Iniciando todos os serviços..."
-    docker-compose up -d
+    $DOCKER_COMPOSE_CMD up -d
     
     # Aguardar serviços ficarem prontos
     sleep 30
@@ -143,7 +157,7 @@ start_services() {
 # Verificar status dos serviços
 check_services() {
     print_message "Verificando status dos serviços..."
-    docker-compose ps
+    $DOCKER_COMPOSE_CMD ps
     
     # Verificar se N8N está respondendo
     if curl -f -s http://localhost:5678/healthz > /dev/null; then
@@ -156,6 +170,10 @@ check_services() {
 # Função principal
 main() {
     print_message "=== RESTAURAÇÃO N8N - $BACKUP_NAME ==="
+    
+    # Detectar Docker Compose e carregar variáveis
+    detect_docker_compose
+    source .env 2>/dev/null || { print_error "Arquivo .env não encontrado!"; exit 1; }
     
     check_backup_files
     confirm_restore
