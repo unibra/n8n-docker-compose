@@ -541,10 +541,5 @@ main() {
     show_final_info
 }
 
-# Executar apenas se chamado diretamente
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "Script chamado diretamente, executando main..."
-    main "$@"
-else
-    echo "Script sendo sourced, não executando main"
-fi
+# Executar função principal
+main "$@"
