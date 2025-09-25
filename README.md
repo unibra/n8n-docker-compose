@@ -53,15 +53,152 @@ Este projeto fornece uma configuração completa do N8N para ambiente de produç
 
 - Docker 20.10+
 - Docker Compose 2.0+
+- Git 2.20+
 - 4GB RAM mínimo (8GB recomendado)
 - 20GB espaço em disco mínimo
 - Sistema operacional Linux (Ubuntu 20.04+ recomendado)
 
+## 🔧 Configuração do Git
+
+### 1. Configuração Inicial do Git
+
+Antes de começar, configure suas informações do Git:
+
+```bash
+# Configurar nome e email globalmente
+git config --global user.name "Seu Nome"
+git config --global user.email "seu-email@exemplo.com"
+
+# Verificar configurações
+git config --list
+```
+
+### 2. Inicializar Repositório
+
+```bash
+# Inicializar repositório Git no projeto
+git init
+
+# Adicionar todos os arquivos
+git add .
+
+# Fazer commit inicial
+git commit -m "feat: configuração inicial do N8N em produção
+
+- Docker Compose com todos os serviços
+- PostgreSQL, Redis, Qdrant e Cloudflared
+- Scripts de administração (backup, restore, monitor)
+- Configurações de produção otimizadas
+- Sistema de backup automático
+- Monitoramento avançado"
+```
+
+### 3. Conectar a Repositório Remoto
+
+```bash
+# Adicionar repositório remoto (GitHub/GitLab)
+git remote add origin https://github.com/seu-usuario/n8n-production.git
+
+# Ou via SSH (recomendado)
+git remote add origin git@github.com:seu-usuario/n8n-production.git
+
+# Verificar repositório remoto
+git remote -v
+
+# Push inicial
+git branch -M main
+git push -u origin main
+```
+
+### 4. Configurar .gitignore
+
+O projeto já inclui um `.gitignore` configurado que ignora:
+
+```gitignore
+# Arquivos sensíveis
+.env
+
+# Dados de produção
+data/
+backups/
+logs/
+
+# Credenciais do Cloudflare
+.cloudflared/
+
+# Arquivos temporários
+*.log
+*.tmp
+*.bak
+```
+
+### 5. Workflow de Desenvolvimento Recomendado
+
+```bash
+# Criar branch para nova funcionalidade
+git checkout -b feature/nova-funcionalidade
+
+# Fazer alterações e commits
+git add .
+git commit -m "feat: adicionar nova funcionalidade"
+
+# Push da branch
+git push origin feature/nova-funcionalidade
+
+# Merge na main após review
+git checkout main
+git merge feature/nova-funcionalidade
+git push origin main
+
+# Limpar branch local
+git branch -d feature/nova-funcionalidade
+```
+
+### 6. Commits Convencionais (Recomendado)
+
+Use o padrão de commits convencionais para melhor organização:
+
+```bash
+# Tipos de commit
+git commit -m "feat: nova funcionalidade"      # Nova funcionalidade
+git commit -m "fix: correção de bug"           # Correção
+git commit -m "docs: atualização documentação" # Documentação
+git commit -m "config: alteração configuração" # Configuração
+git commit -m "refactor: refatoração código"   # Refatoração
+git commit -m "perf: melhoria performance"     # Performance
+git commit -m "test: adição de testes"         # Testes
+```
+
+### 7. Backup do Repositório
+
+```bash
+# Criar backup local do repositório
+git bundle create n8n-production-backup.bundle --all
+
+# Restaurar de backup (se necessário)
+git clone n8n-production-backup.bundle n8n-production-restored
+```
+
+### 8. Configurações Específicas do Projeto
+
+```bash
+# Configurar hooks de pre-commit (opcional)
+echo '#!/bin/bash
+# Verificar se .env não está sendo commitado
+if git diff --cached --name-only | grep -q "^\.env$"; then
+    echo "ERRO: Arquivo .env não deve ser commitado!"
+    echo "Use .env.example para templates"
+    exit 1
+fi' > .git/hooks/pre-commit
+
+chmod +x .git/hooks/pre-commit
+```
+
 ## 📦 Instalação Rápida
 
 ```bash
-# 1. Clone o projeto
-git clone <repositorio>
+# 1. Clone o projeto (ou inicialize como mostrado acima)
+git clone https://github.com/seu-usuario/n8n-production.git
 cd n8n-production
 
 # 2. Configure as variáveis de ambiente
