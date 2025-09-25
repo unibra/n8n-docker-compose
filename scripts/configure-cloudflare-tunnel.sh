@@ -179,14 +179,26 @@ check_existing_tunnel() {
     
     # Usar API Token para listar túneis
     export CLOUDFLARE_API_TOKEN
-    if cloudflared tunnel list 2>/dev/null | grep -q "$TUNNEL_NAME"; then
+    local tunnel_list=$(cloudflared tunnel list 2>/dev/null)
+    local tunnel_count=$(echo "$tunnel_list" | grep -c "$TUNNEL_NAME" || echo "0")
+    
+    if [[ $tunnel_count -gt 0 ]]; then
+        if [[ $tunnel_count -gt 1 ]]; then
+            print_warning "Encontrados $tunnel_count túneis com nome '$TUNNEL_NAME'"
+            print_info "Lista de túneis:"
+            echo "$tunnel_list" | grep "$TUNNEL_NAME"
+        else
+            print_warning "Túnel '$TUNNEL_NAME' já existe"
+        fi
+        
         print_warning "Túnel '$TUNNEL_NAME' já existe"
         print_info "Opções:"
         echo "1. Usar túnel existente"
         echo "2. Deletar e criar novo"
-        echo "3. Cancelar"
+        echo "3. Listar todos os túneis"
+        echo "4. Cancelar"
         
-        read -p "Escolha uma opção (1-3): " choice
+        read -p "Escolha uma opção (1-4): " choice
         
         case $choice in
             1)
@@ -195,12 +207,22 @@ check_existing_tunnel() {
                 ;;
             2)
                 print_warning "Deletando túnel existente..."
-                export CLOUDFLARE_API_TOKEN
-                cloudflared tunnel delete "$TUNNEL_NAME" --force
-                print_message "Túnel deletado"
+                delete_existing_tunnels
                 return 1
                 ;;
             3)
+                print_info "Listando todos os túneis:"
+                cloudflared tunnel list
+                echo
+                read -p "Deseja continuar com a deleção? (y/n): " delete_choice
+                if [[ $delete_choice =~ ^[Yy]$ ]]; then
+                    delete_existing_tunnels
+                    return 1
+                else
+                    exit 0
+                fi
+                ;;
+            4)
                 print_message "Operação cancelada"
                 exit 0
                 ;;
@@ -214,17 +236,94 @@ check_existing_tunnel() {
     fi
 }
 
+# Deletar túneis existentes
+delete_existing_tunnels() {
+    print_message "Deletando túneis com nome '$TUNNEL_NAME'..."
+    
+    # Obter IDs dos túneis com o nome especificado
+    local tunnel_ids=$(cloudflared tunnel list 2>/dev/null | grep "$TUNNEL_NAME" | awk '{print $1}')
+    
+    if [[ -z "$tunnel_ids" ]]; then
+        print_warning "Nenhum túnel encontrado para deletar"
+        return
+    fi
+    
+    # Deletar cada túnel pelo ID
+    for tunnel_id in $tunnel_ids; do
+        print_message "Deletando túnel ID: $tunnel_id"
+        if cloudflared tunnel delete "$tunnel_id" 2>/dev/null; then
+            print_message "✅ Túnel $tunnel_id deletado com sucesso"
+        else
+            print_error "Falha ao deletar túnel $tunnel_id"
+            # Tentar deletar com força
+            print_message "Tentando deleção forçada..."
+            if cloudflared tunnel delete "$tunnel_id" --force 2>/dev/null; then
+                print_message "✅ Túnel $tunnel_id deletado com força"
+            else
+                print_error "Não foi possível deletar túnel $tunnel_id"
+            fi
+        fi
+    done
+    
+    # Aguardar um pouco para propagação
+    sleep 2
+    print_message "✅ Processo de deleção concluído"
+}
+
 # Criar novo túnel
 create_tunnel() {
     print_message "Criando túnel '$TUNNEL_NAME'..."
     
+    # Verificar se ainda existe algum túnel com o mesmo nome
+    local remaining_tunnels=$(cloudflared tunnel list 2>/dev/null | grep -c "$TUNNEL_NAME" || echo "0")
+    if [[ $remaining_tunnels -gt 0 ]]; then
+        print_warning "Ainda existem $remaining_tunnels túneis com nome '$TUNNEL_NAME'"
+        print_message "Aguardando 5 segundos para propagação..."
+        sleep 5
+    fi
+    
     # Usar API Token para criar túnel
     export CLOUDFLARE_API_TOKEN
-    if cloudflared tunnel create "$TUNNEL_NAME" 2>/dev/null; then
+    local create_output=$(cloudflared tunnel create "$TUNNEL_NAME" 2>&1)
+    local create_status=$?
+    
+    if [[ $create_status -eq 0 ]]; then
         print_message "✅ Túnel criado com sucesso"
+        # Exibir informações do túnel criado
+        if echo "$create_output" | grep -q "Created tunnel"; then
+            local tunnel_info=$(echo "$create_output" | grep "Created tunnel")
+            print_info "$tunnel_info"
+        fi
     else
         print_error "Falha ao criar túnel"
-        print_error "Verifique se o API Token tem permissões 'Account:Cloudflare Tunnel:Edit'"
+        print_error "Output: $create_output"
+        
+        # Verificar se é problema de nome duplicado
+        if echo "$create_output" | grep -q "already exists"; then
+            print_warning "Túnel com esse nome ainda existe. Tentando resolver..."
+            print_message "Listando túneis atuais:"
+            cloudflared tunnel list
+            
+            read -p "Deseja tentar deletar novamente? (y/n): " retry_choice
+            if [[ $retry_choice =~ ^[Yy]$ ]]; then
+                delete_existing_tunnels
+                sleep 3
+                # Tentar criar novamente
+                if cloudflared tunnel create "$TUNNEL_NAME" 2>/dev/null; then
+                    print_message "✅ Túnel criado com sucesso na segunda tentativa"
+                else
+                    print_error "Falha persistente ao criar túnel"
+                    exit 1
+                fi
+            else
+                exit 1
+            fi
+        else
+            print_error "Verifique se o API Token tem permissões 'Account:Cloudflare Tunnel:Edit'"
+            exit 1
+        fi
+    fi
+}
         exit 1
     fi
 }
