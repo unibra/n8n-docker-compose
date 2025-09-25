@@ -1,0 +1,67 @@
+# ==============================================
+# QDRANT CONFIGURAÇÃO DE PRODUÇÃO
+# ==============================================
+
+log_level: INFO
+
+storage:
+  # Configurações de armazenamento
+  storage_path: /qdrant/storage
+  snapshots_path: /qdrant/snapshots
+  temp_path: /qdrant/temp
+  
+  # Configurações de performance
+  performance:
+    max_search_threads: 0  # 0 significa usar todos os cores disponíveis
+    max_optimization_threads: 1
+
+service:
+  # Configurações do servidor HTTP
+  http_port: 6333
+  grpc_port: 6334
+  enable_cors: true
+  
+  # Configurações de limites
+  max_request_size_mb: 32
+  max_workers: 0  # 0 significa usar o número padrão baseado em CPU cores
+  
+  # Configurações de timeout
+  grpc_timeout_ms: 60000
+
+cluster:
+  enabled: false
+
+# Configurações de telemetria
+telemetry_disabled: true
+
+# Configurações específicas de coleções
+collections:
+  # Configurações padrão para novas coleções
+  default_vector_config:
+    size: 768
+    distance: Cosine
+  
+  # Configurações de otimização
+  optimizer:
+    deleted_threshold: 0.2
+    vacuum_min_vector_number: 1000
+    default_segment_number: 0
+    max_segment_size_kb: 0  # Sem limite
+    memmap_threshold_kb: 0  # Sem limite
+    indexing_threshold_kb: 20000
+    flush_interval_sec: 5
+    max_optimization_threads: 1
+
+# Configurações de API
+api:
+  enable_ui: false  # Desabilitado em produção
+  
+# Configurações de segurança
+security:
+  # Em produção, configure authentication aqui se necessário
+  # api_key: "your-secure-api-key"
+  
+# Configurações de backup automático
+backup:
+  # Configurações de snapshot automático (se necessário)
+  # snapshot_interval: 3600  # 1 hora em segundos
