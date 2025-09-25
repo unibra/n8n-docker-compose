@@ -1,69 +1,39 @@
 # Dados sensíveis
 .env
-.env.local
-.env.*.local
+*.env.local
+*.env.production
+*.backup
 
-# Dados persistentes
+# Dados dos containers
 data/
 backups/
 logs/
 
-# Docker
-.docker/
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
 
 # Sistema
 .DS_Store
 Thumbs.db
 *.log
 
-# Editor
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# Temporary files
+# Temporários
 tmp/
 temp/
 *.tmp
-*.temp
 
-# Backup files
-*.backup
-*.bak
-*.old
+# Cloudflared
+.cloudflared/
 
-# SSL certificates
-*.crt
-*.key
-*.pem
-*.cert
-
-# Secrets
-secrets/
-*.secret
-
-# Node modules (se houver)
-node_modules/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-ENV/
-
-# MacOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
+# Docker
+*.pid
