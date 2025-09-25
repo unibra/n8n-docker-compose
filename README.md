@@ -114,16 +114,18 @@ openssl rand -hex 64
 
 **Opção 1: Configuração Automática (Recomendada)**
 ```bash
+# 1. Configure o API Token no arquivo .env
+# Vá para: Cloudflare Dashboard > My Profile > API Tokens
+# Crie um token com permissões:
+# - Zone:DNS:Edit (para seu domínio)  
+# - Account:Cloudflare Tunnel:Edit
+
 # Execute o script de configuração automática
 ./scripts/configure-cloudflare-tunnel.sh
 ```
 
 **Opção 2: Configuração Manual**
 1. Acesse o [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Vá para **Zero Trust** > **Networks** > **Tunnels**
-3. Crie um novo túnel chamado `n8n-production`
-4. Configure o subdomínio `n8n.giacomo.dev.br` apontando para `http://n8n:5678`
-5. Copie o token do túnel para a variável `CLOUDFLARE_TUNNEL_TOKEN` no arquivo `.env`
 
 ## 🔧 Comandos Úteis
 

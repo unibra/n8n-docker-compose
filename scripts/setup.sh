@@ -92,6 +92,15 @@ check_env_file() {
     fi
     
     if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]] || [[ "$CLOUDFLARE_TUNNEL_TOKEN" == "your-cloudflare-tunnel-token-here" ]]; then
+        if [[ -z "$CLOUDFLARE_API_TOKEN" ]] || [[ "$CLOUDFLARE_API_TOKEN" == "your-cloudflare-api-token-here" ]]; then
+            print_warning "CLOUDFLARE_API_TOKEN não configurado!"
+            print_warning "Configure o API Token antes do Tunnel Token:"
+            print_warning "1. Vá para Cloudflare Dashboard > My Profile > API Tokens"
+            print_warning "2. Crie um token com permissões Zone:DNS:Edit e Account:Cloudflare Tunnel:Edit"
+            print_warning "3. Configure CLOUDFLARE_API_TOKEN no arquivo .env"
+            echo
+        fi
+        
         print_warning "CLOUDFLARE_TUNNEL_TOKEN não configurado!"
         print_warning "Você pode configurar automaticamente executando:"
         print_warning "./scripts/configure-cloudflare-tunnel.sh"
