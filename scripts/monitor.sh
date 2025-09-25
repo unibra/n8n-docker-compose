@@ -73,14 +73,14 @@ check_connectivity() {
     echo
     
     # PostgreSQL
-    if $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U $POSTGRES_USER -d $POSTGRES_DB &>/dev/null; then
+    if docker-compose exec -T postgres pg_isready -U $POSTGRES_USER -d $POSTGRES_DB &>/dev/null; then
         print_ok "PostgreSQL: Conectividade OK"
     else
         print_error "PostgreSQL: Falha na conectividade"
     fi
     
     # Redis
-    if $DOCKER_COMPOSE_CMD exec -T redis redis-cli ping | grep -q "PONG"; then
+    if docker-compose exec -T redis redis-cli ping | grep -q "PONG"; then
         print_ok "Redis: Conectividade OK"
     else
         print_error "Redis: Falha na conectividade"
@@ -178,19 +178,16 @@ check_database_performance() {
     print_status "Verificando performance do PostgreSQL..."
     echo
     
-    # Carregar variáveis de ambiente
-    source .env 2>/dev/null || true
-    
     # Conexões ativas
-    local active_connections=$($DOCKER_COMPOSE_CMD exec -T postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -t -c "SELECT count(*) FROM pg_stat_activity;" | tr -d ' ')
+    local active_connections=$(docker-compose exec -T postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -t -c "SELECT count(*) FROM pg_stat_activity;" | tr -d ' ')
     print_ok "Conexões ativas: $active_connections"
     
     # Tamanho do banco
-    local db_size=$($DOCKER_COMPOSE_CMD exec -T postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -t -c "SELECT pg_size_pretty(pg_database_size('$POSTGRES_DB'));" | tr -d ' ')
+    local db_size=$(docker-compose exec -T postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -t -c "SELECT pg_size_pretty(pg_database_size('$POSTGRES_DB'));" | tr -d ' ')
     print_ok "Tamanho do banco: $db_size"
     
     # Queries lentas (se habilitadas)
-    local slow_queries=$($DOCKER_COMPOSE_CMD exec -T postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -t -c "SELECT count(*) FROM pg_stat_statements WHERE mean_time > 1000;" 2>/dev/null | tr -d ' ' || echo "N/A")
+    local slow_queries=$(docker-compose exec -T postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -t -c "SELECT count(*) FROM pg_stat_statements WHERE mean_time > 1000;" 2>/dev/null | tr -d ' ' || echo "N/A")
     if [[ "$slow_queries" != "N/A" ]]; then
         print_ok "Queries lentas: $slow_queries"
     fi
@@ -245,9 +242,6 @@ full_report() {
 # Menu principal
 main() {
     source .env 2>/dev/null || true
-    
-    # Detectar comando Docker Compose
-    detect_docker_compose
     
     if [[ $# -eq 0 ]]; then
         while true; do

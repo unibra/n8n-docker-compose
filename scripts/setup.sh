@@ -14,22 +14,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Detectar qual comando Docker Compose usar
-DOCKER_COMPOSE_CMD=""
-
-detect_docker_compose() {
-    if command -v docker-compose &> /dev/null; then
-        DOCKER_COMPOSE_CMD="docker-compose"
-    elif docker compose version &> /dev/null; then
-        DOCKER_COMPOSE_CMD="docker compose"
-    else
-        print_error "Docker Compose não está disponível"
-        print_error "Instale Docker Compose ou use Docker com plugin compose"
-        exit 1
-    fi
-    print_message "Usando comando: $DOCKER_COMPOSE_CMD"
-}
-
 # Função para exibir mensagens
 print_message() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -52,7 +36,10 @@ check_dependencies() {
         exit 1
     fi
     
-    # A detecção do Docker Compose é feita na função detect_docker_compose()
+    if ! command -v docker-compose &> /dev/null && ! command -v docker &> /dev/null; then
+        print_error "Docker Compose não está disponível. Verifique sua instalação do Docker."
+        exit 1
+    fi
     
     print_message "✅ Dependências verificadas com sucesso"
 }
@@ -105,15 +92,6 @@ check_env_file() {
     fi
     
     if [[ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]] || [[ "$CLOUDFLARE_TUNNEL_TOKEN" == "your-cloudflare-tunnel-token-here" ]]; then
-        if [[ -z "$CLOUDFLARE_API_TOKEN" ]] || [[ "$CLOUDFLARE_API_TOKEN" == "your-cloudflare-api-token-here" ]]; then
-            print_warning "CLOUDFLARE_API_TOKEN não configurado!"
-            print_warning "Configure o API Token antes do Tunnel Token:"
-            print_warning "1. Vá para Cloudflare Dashboard > My Profile > API Tokens"
-            print_warning "2. Crie um token com permissões Zone:DNS:Edit e Account:Cloudflare Tunnel:Edit"
-            print_warning "3. Configure CLOUDFLARE_API_TOKEN no arquivo .env"
-            echo
-        fi
-        
         print_warning "CLOUDFLARE_TUNNEL_TOKEN não configurado!"
         print_warning "Você pode configurar automaticamente executando:"
         print_warning "./scripts/configure-cloudflare-tunnel.sh"
@@ -157,15 +135,12 @@ generate_security_keys() {
 init_database() {
     print_message "Inicializando banco de dados..."
     
-    # Carregar variáveis de ambiente
-    source .env
-    
     # Subir apenas o PostgreSQL primeiro
-    $DOCKER_COMPOSE_CMD up -d postgres
+    docker-compose up -d postgres
     
     # Aguardar PostgreSQL ficar pronto
     print_message "Aguardando PostgreSQL ficar pronto..."
-    until $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do
+    until docker-compose exec -T postgres pg_isready -U $POSTGRES_USER -d $POSTGRES_DB; do
         sleep 2
     done
     
@@ -175,9 +150,6 @@ init_database() {
 # Função principal de setup
 main() {
     print_message "=== CONFIGURAÇÃO N8N PRODUÇÃO ==="
-    
-    # Detectar comando Docker Compose PRIMEIRO
-    detect_docker_compose
     
     check_dependencies
     create_directories
@@ -189,7 +161,7 @@ main() {
     print_message ""
     print_message "Próximos passos:"
     print_message "1. Configure o token do Cloudflare Tunnel no arquivo .env"
-    print_message "2. Execute: $DOCKER_COMPOSE_CMD up -d"
+    print_message "2. Execute: docker-compose up -d"
     print_message "3. Acesse: https://n8n.giacomo.dev.br"
     print_message ""
     print_warning "IMPORTANTE: Guarde as chaves geradas em local seguro!"

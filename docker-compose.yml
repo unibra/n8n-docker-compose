@@ -13,8 +13,7 @@ services:
       POSTGRES_INITDB_ARGS: --encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./config/postgres/postgresql.conf:/usr/local/share/postgresql/postgresql.conf:ro
-    command: ["postgres", "-c", "config_file=/usr/local/share/postgresql/postgresql.conf"]
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     networks:
       - n8n-internal
     healthcheck:
@@ -63,10 +62,10 @@ services:
     container_name: n8n-qdrant
     restart: unless-stopped
     environment:
-      QDRANT__SERVICE__HTTP_PORT: ${QDRANT_HTTP_PORT:-6333}
-      QDRANT__SERVICE__GRPC_PORT: ${QDRANT_GRPC_PORT:-6334}
-      QDRANT__STORAGE__STORAGE_PATH: ${QDRANT_STORAGE_PATH:-/qdrant/storage}
-      QDRANT__LOG_LEVEL: ${QDRANT_LOG_LEVEL:-INFO}
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__STORAGE__STORAGE_PATH: /qdrant/storage
+      QDRANT__LOG_LEVEL: INFO
     volumes:
       - qdrant_data:/qdrant/storage
       - ./config/qdrant/config.yaml:/qdrant/config/production.yaml:ro

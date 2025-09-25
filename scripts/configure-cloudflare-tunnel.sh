@@ -1,31 +1,10 @@
 #!/bin/bash
 
 # ==============================================
-# DETECTAR COMANDO DOCKER COMPOSE
-# ==============================================
-DOCKER_COMPOSE_CMD=""
-
-detect_docker_compose() {
-    if command -v docker-compose &> /dev/null; then
-        DOCKER_COMPOSE_CMD="docker-compose"
-    elif docker compose version &> /dev/null 2>&1; then
-        DOCKER_COMPOSE_CMD="docker compose"
-    else
-        print_error "Docker Compose não está disponível"
-        exit 1
-    fi
-}
-
-# ==============================================
-# SCRIPT DE CONFIGURAÇÃO CLOUDFLARE TUNNEL - API TOKEN
+# SCRIPT DE CONFIGURAÇÃO CLOUDFLARE TUNNEL
 # ==============================================
 
 set -e
-
-# Debug inicial
-echo "🚀 Script iniciado..."
-echo "Diretório atual: $(pwd)"
-echo "Usuário: $(whoami)"
 
 # Cores para output
 RED='\033[0;31m'
@@ -54,48 +33,6 @@ print_info() {
 TUNNEL_NAME="n8n-production"
 DOMAIN="n8n.giacomo.dev.br"
 ENV_FILE=".env"
-
-# Verificar variáveis de ambiente necessárias
-check_env_variables() {
-    print_message "Verificando variáveis de ambiente..."
-    
-    # Detectar comando Docker Compose
-    detect_docker_compose
-    
-    # Debug
-    echo "Verificando arquivo .env..."
-    if [[ -f "$ENV_FILE" ]]; then
-        echo "Arquivo .env encontrado"
-    else
-        echo "Arquivo .env NÃO encontrado em: $ENV_FILE"
-    fi
-    
-    # Carregar arquivo .env se existir
-    if [[ -f "$ENV_FILE" ]]; then
-        echo "Carregando variáveis do .env..."
-        set +e  # Desabilitar exit on error temporariamente
-        source "$ENV_FILE"
-        set -e  # Reabilitar exit on error
-        echo "Variáveis carregadas"
-    else
-        echo "Arquivo .env não encontrado!"
-    fi
-    
-    if [[ -z "$CLOUDFLARE_API_TOKEN" ]] || [[ "$CLOUDFLARE_API_TOKEN" == "your-cloudflare-api-token-here" ]]; then
-        print_error "CLOUDFLARE_API_TOKEN não configurado no arquivo .env"
-        print_info "Para configurar:"
-        print_info "1. Vá para Cloudflare Dashboard > My Profile > API Tokens"
-        print_info "2. Clique em 'Create Token'"
-        print_info "3. Configure as permissões:"
-        print_info "   - Zone:DNS:Edit (para sua zona/domínio)"
-        print_info "   - Account:Cloudflare Tunnel:Edit"
-        print_info "4. Copie o token para CLOUDFLARE_API_TOKEN no arquivo .env"
-        exit 1
-    fi
-    
-    export CLOUDFLARE_API_TOKEN
-    print_message "✅ Variáveis de ambiente verificadas"
-}
 
 # Verificar se cloudflared está instalado
 check_cloudflared() {
@@ -164,49 +101,17 @@ install_cloudflared_macos() {
     print_message "✅ Cloudflared instalado com sucesso"
 }
 
-# Verificar autenticação com API Token
-check_api_authentication() {
-    print_message "Verificando autenticação com API Token..."
+# Fazer login no Cloudflare
+cloudflare_login() {
+    print_message "Iniciando processo de autenticação com Cloudflare..."
+    print_info "Uma janela do navegador será aberta para autenticação"
+    print_info "Pressione Enter quando estiver pronto para continuar"
+    read -p ""
     
-    # Testar conectividade com a API do Cloudflare usando o token
-    local response=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-                          -H "Content-Type: application/json" \
-                          "https://api.cloudflare.com/client/v4/user/tokens/verify")
-    
-    if echo "$response" | grep -q '"success":true'; then
-        print_message "✅ API Token válido e funcionando"
-        # Extrair informações do usuário
-        local user_email=$(echo "$response" | grep -o '"email":"[^"]*"' | cut -d'"' -f4)
-        if [[ -n "$user_email" ]]; then
-            print_info "Autenticado como: $user_email"
-        fi
+    if cloudflared tunnel login; then
+        print_message "✅ Autenticação realizada com sucesso"
     else
-        print_error "API Token inválido ou sem permissões adequadas"
-        print_error "Resposta da API: $response"
-        exit 1
-    fi
-}
-
-# Obter Account ID necessário para operações de túnel
-get_account_id() {
-    print_message "Obtendo Account ID..."
-    
-    local response=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-                          -H "Content-Type: application/json" \
-                          "https://api.cloudflare.com/client/v4/accounts")
-    
-    if echo "$response" | grep -q '"success":true'; then
-        ACCOUNT_ID=$(echo "$response" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-        if [[ -n "$ACCOUNT_ID" ]]; then
-            print_message "✅ Account ID obtido: $ACCOUNT_ID"
-            export CF_ACCOUNT_ID="$ACCOUNT_ID"
-        else
-            print_error "Não foi possível obter Account ID"
-            exit 1
-        fi
-    else
-        print_error "Falha ao obter Account ID"
-        print_error "Resposta da API: $response"
+        print_error "Falha na autenticação com Cloudflare"
         exit 1
     fi
 }
@@ -215,28 +120,14 @@ get_account_id() {
 check_existing_tunnel() {
     print_message "Verificando se o túnel '$TUNNEL_NAME' já existe..."
     
-    # Usar API Token para listar túneis
-    export CLOUDFLARE_API_TOKEN
-    local tunnel_list=$(cloudflared tunnel list 2>/dev/null)
-    local tunnel_count=$(echo "$tunnel_list" | grep -c "$TUNNEL_NAME" || echo "0")
-    
-    if [[ $tunnel_count -gt 0 ]]; then
-        if [[ $tunnel_count -gt 1 ]]; then
-            print_warning "Encontrados $tunnel_count túneis com nome '$TUNNEL_NAME'"
-            print_info "Lista de túneis:"
-            echo "$tunnel_list" | grep "$TUNNEL_NAME"
-        else
-            print_warning "Túnel '$TUNNEL_NAME' já existe"
-        fi
-        
+    if cloudflared tunnel list | grep -q "$TUNNEL_NAME"; then
         print_warning "Túnel '$TUNNEL_NAME' já existe"
         print_info "Opções:"
         echo "1. Usar túnel existente"
         echo "2. Deletar e criar novo"
-        echo "3. Listar todos os túneis"
-        echo "4. Cancelar"
+        echo "3. Cancelar"
         
-        read -p "Escolha uma opção (1-4): " choice
+        read -p "Escolha uma opção (1-3): " choice
         
         case $choice in
             1)
@@ -245,22 +136,11 @@ check_existing_tunnel() {
                 ;;
             2)
                 print_warning "Deletando túnel existente..."
-                delete_existing_tunnels
+                cloudflared tunnel delete "$TUNNEL_NAME" --force
+                print_message "Túnel deletado"
                 return 1
                 ;;
             3)
-                print_info "Listando todos os túneis:"
-                cloudflared tunnel list
-                echo
-                read -p "Deseja continuar com a deleção? (y/n): " delete_choice
-                if [[ $delete_choice =~ ^[Yy]$ ]]; then
-                    delete_existing_tunnels
-                    return 1
-                else
-                    exit 0
-                fi
-                ;;
-            4)
                 print_message "Operação cancelada"
                 exit 0
                 ;;
@@ -274,94 +154,14 @@ check_existing_tunnel() {
     fi
 }
 
-# Deletar túneis existentes
-delete_existing_tunnels() {
-    print_message "Deletando túneis com nome '$TUNNEL_NAME'..."
-    
-    # Obter IDs dos túneis com o nome especificado
-    local tunnel_ids=$(cloudflared tunnel list 2>/dev/null | grep "$TUNNEL_NAME" | awk '{print $1}')
-    
-    if [[ -z "$tunnel_ids" ]]; then
-        print_warning "Nenhum túnel encontrado para deletar"
-        return
-    fi
-    
-    # Deletar cada túnel pelo ID
-    for tunnel_id in $tunnel_ids; do
-        print_message "Deletando túnel ID: $tunnel_id"
-        if cloudflared tunnel delete "$tunnel_id" 2>/dev/null; then
-            print_message "✅ Túnel $tunnel_id deletado com sucesso"
-        else
-            print_error "Falha ao deletar túnel $tunnel_id"
-            # Tentar deletar com força
-            print_message "Tentando deleção forçada..."
-            if cloudflared tunnel delete "$tunnel_id" --force 2>/dev/null; then
-                print_message "✅ Túnel $tunnel_id deletado com força"
-            else
-                print_error "Não foi possível deletar túnel $tunnel_id"
-            fi
-        fi
-    done
-    
-    # Aguardar um pouco para propagação
-    sleep 2
-    print_message "✅ Processo de deleção concluído"
-}
-
 # Criar novo túnel
 create_tunnel() {
     print_message "Criando túnel '$TUNNEL_NAME'..."
     
-    # Verificar se ainda existe algum túnel com o mesmo nome
-    local remaining_tunnels=$(cloudflared tunnel list 2>/dev/null | grep -c "$TUNNEL_NAME" || echo "0")
-    if [[ $remaining_tunnels -gt 0 ]]; then
-        print_warning "Ainda existem $remaining_tunnels túneis com nome '$TUNNEL_NAME'"
-        print_message "Aguardando 5 segundos para propagação..."
-        sleep 5
-    fi
-    
-    # Usar API Token para criar túnel
-    export CLOUDFLARE_API_TOKEN
-    local create_output=$(cloudflared tunnel create "$TUNNEL_NAME" 2>&1)
-    local create_status=$?
-    
-    if [[ $create_status -eq 0 ]]; then
+    if cloudflared tunnel create "$TUNNEL_NAME"; then
         print_message "✅ Túnel criado com sucesso"
-        # Exibir informações do túnel criado
-        if echo "$create_output" | grep -q "Created tunnel"; then
-            local tunnel_info=$(echo "$create_output" | grep "Created tunnel")
-            print_info "$tunnel_info"
-        fi
     else
         print_error "Falha ao criar túnel"
-        print_error "Output: $create_output"
-        
-        # Verificar se é problema de nome duplicado
-        if echo "$create_output" | grep -q "already exists"; then
-            print_warning "Túnel com esse nome ainda existe. Tentando resolver..."
-            print_message "Listando túneis atuais:"
-            cloudflared tunnel list
-            
-            read -p "Deseja tentar deletar novamente? (y/n): " retry_choice
-            if [[ $retry_choice =~ ^[Yy]$ ]]; then
-                delete_existing_tunnels
-                sleep 3
-                # Tentar criar novamente
-                if cloudflared tunnel create "$TUNNEL_NAME" 2>/dev/null; then
-                    print_message "✅ Túnel criado com sucesso na segunda tentativa"
-                else
-                    print_error "Falha persistente ao criar túnel"
-                    exit 1
-                fi
-            else
-                exit 1
-            fi
-        else
-            print_error "Verifique se o API Token tem permissões 'Account:Cloudflare Tunnel:Edit'"
-            exit 1
-        fi
-    fi
-}
         exit 1
     fi
 }
@@ -370,22 +170,15 @@ create_tunnel() {
 configure_dns() {
     print_message "Configurando DNS para '$DOMAIN'..."
     
-    # Usar API Token para configurar DNS
-    export CLOUDFLARE_API_TOKEN
-    if cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" 2>/dev/null; then
+    if cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"; then
         print_message "✅ DNS configurado com sucesso"
     else
         print_error "Falha ao configurar DNS"
-        print_error "Verifique se o API Token tem permissões 'Zone:DNS:Edit' para o domínio $DOMAIN"
         print_warning "Você pode configurar manualmente no Cloudflare Dashboard:"
         print_warning "Tipo: CNAME"
-        print_warning "Nome: ${DOMAIN%%.*}"
+        print_warning "Nome: n8n"
         print_warning "Destino: $TUNNEL_NAME.cfargotunnel.com"
-        
-        read -p "Deseja continuar mesmo assim? (y/n): " continue_choice
-        if [[ ! $continue_choice =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
+        exit 1
     fi
 }
 
@@ -393,9 +186,8 @@ configure_dns() {
 get_tunnel_token() {
     print_message "Obtendo token do túnel..."
     
-    # Obter ID do túnel usando API Token
-    export CLOUDFLARE_API_TOKEN
-    local tunnel_id=$(cloudflared tunnel list 2>/dev/null | grep "$TUNNEL_NAME" | awk '{print $1}')
+    # Obter ID do túnel
+    local tunnel_id=$(cloudflared tunnel list | grep "$TUNNEL_NAME" | awk '{print $1}')
     
     if [[ -z "$tunnel_id" ]]; then
         print_error "Não foi possível obter o ID do túnel"
@@ -404,13 +196,23 @@ get_tunnel_token() {
     
     print_info "ID do túnel: $tunnel_id"
     
-    # Gerar token usando API Token
-    export CLOUDFLARE_API_TOKEN
-    local token=$(cloudflared tunnel token "$tunnel_id" 2>/dev/null)
+    # Criar arquivo de configuração temporário
+    local config_file="/tmp/cloudflared_config.yml"
+    cat > "$config_file" << EOF
+tunnel: $tunnel_id
+credentials-file: $HOME/.cloudflared/$tunnel_id.json
+
+ingress:
+  - hostname: $DOMAIN
+    service: http://n8n:5678
+  - service: http_status:404
+EOF
+    
+    # Gerar token
+    local token=$(cloudflared tunnel token --cred-file "$HOME/.cloudflared/$tunnel_id.json" "$tunnel_id")
     
     if [[ -z "$token" ]]; then
         print_error "Não foi possível gerar o token do túnel"
-        print_error "Verifique se o túnel foi criado corretamente"
         exit 1
     fi
     
@@ -433,7 +235,7 @@ update_env_file() {
     
     # Atualizar token
     if grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$ENV_FILE"; then
-        sed -i.bak "s#^CLOUDFLARE_TUNNEL_TOKEN=.*#CLOUDFLARE_TUNNEL_TOKEN=$token#" "$ENV_FILE"
+        sed -i.bak "s/^CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$token/" "$ENV_FILE"
         rm -f "${ENV_FILE}.bak"
     else
         echo "CLOUDFLARE_TUNNEL_TOKEN=$token" >> "$ENV_FILE"
@@ -446,21 +248,24 @@ update_env_file() {
 test_tunnel() {
     print_message "Testando configuração do túnel..."
     
-    print_info "Verificando se o túnel está configurado corretamente..."
+    # Criar configuração de teste
+    local config_file="/tmp/cloudflared_test.yml"
+    local tunnel_id=$(cloudflared tunnel list | grep "$TUNNEL_NAME" | awk '{print $1}')
     
-    # Verificar se o túnel existe na lista
-    export CLOUDFLARE_API_TOKEN
-    if cloudflared tunnel list 2>/dev/null | grep -q "$TUNNEL_NAME"; then
-        print_message "✅ Túnel encontrado na lista"
-    else
-        print_warning "Túnel não encontrado na lista"
-    fi
+    cat > "$config_file" << EOF
+tunnel: $tunnel_id
+credentials-file: $HOME/.cloudflared/$tunnel_id.json
+
+ingress:
+  - hostname: $DOMAIN
+    service: http://localhost:5678
+  - service: http_status:404
+EOF
     
-    # Verificar configuração DNS via API
-    local zone_name=$(echo "$DOMAIN" | sed 's/^[^.]*\.//')
-    local record_name=$(echo "$DOMAIN" | sed 's/\..*//')
+    print_info "Iniciando teste do túnel (pressione Ctrl+C após alguns segundos)..."
+    timeout 10 cloudflared tunnel --config "$config_file" run "$TUNNEL_NAME" || true
     
-    print_info "Verificando configuração DNS para $DOMAIN..."
+    rm -f "$config_file"
     print_message "✅ Teste concluído"
 }
 
@@ -470,8 +275,7 @@ show_final_info() {
     echo
     print_info "🌐 Domínio configurado: https://$DOMAIN"
     print_info "🔧 Túnel criado: $TUNNEL_NAME"
-    print_info "🔑 API Token: Configurado e validado"
-    print_info "📁 Tunnel Token: Salvo em $ENV_FILE"
+    print_info "📁 Token salvo em: $ENV_FILE"
     echo
     print_message "Próximos passos:"
     print_message "1. Execute: docker-compose up -d"
@@ -479,27 +283,16 @@ show_final_info() {
     print_message "3. Acesse: https://$DOMAIN"
     echo
     print_warning "IMPORTANTE:"
-    print_warning "• Mantenha o API Token seguro e com permissões limitadas"
+    print_warning "• Mantenha os arquivos de credencial em ~/.cloudflared/ seguros"
     print_warning "• Faça backup do arquivo .env regularmente"
     print_warning "• O túnel será iniciado automaticamente com o docker-compose"
-    echo
-    print_info "ℹ️  Para gerenciar outros túneis ou contas:"
-    print_info "• Configure diferentes API Tokens no arquivo .env"
-    print_info "• Execute este script com diferentes valores de TUNNEL_NAME e DOMAIN"
 }
 
 # Função principal
 main() {
-    echo "=== INICIANDO FUNÇÃO PRINCIPAL ==="
     print_message "=== CONFIGURAÇÃO CLOUDFLARE TUNNEL ==="
     echo
     
-    echo "Chamando check_env_variables..."
-    # Verificar variáveis de ambiente
-    check_env_variables
-    echo "check_env_variables concluída"
-    
-    echo "Chamando check_cloudflared..."
     # Verificar pré-requisitos
     if ! check_cloudflared; then
         print_warning "Cloudflared precisa ser instalado primeiro"
@@ -513,11 +306,12 @@ main() {
         fi
     fi
     
-    # Verificar autenticação com API Token
-    check_api_authentication
-    
-    # Obter Account ID
-    get_account_id
+    # Fazer login no Cloudflare
+    if [[ ! -f "$HOME/.cloudflared/cert.pem" ]]; then
+        cloudflare_login
+    else
+        print_message "Certificado Cloudflare já existe, pulando autenticação"
+    fi
     
     # Verificar/criar túnel
     if ! check_existing_tunnel; then
@@ -541,5 +335,7 @@ main() {
     show_final_info
 }
 
-# Executar função principal
-main "$@"
+# Executar apenas se chamado diretamente
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
