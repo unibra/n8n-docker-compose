@@ -62,10 +62,10 @@ services:
     container_name: n8n-qdrant
     restart: unless-stopped
     environment:
-      QDRANT__SERVICE__HTTP_PORT: 6333
-      QDRANT__SERVICE__GRPC_PORT: 6334
-      QDRANT__STORAGE__STORAGE_PATH: /qdrant/storage
-      QDRANT__LOG_LEVEL: INFO
+      QDRANT__SERVICE__HTTP_PORT: ${QDRANT_HTTP_PORT}
+      QDRANT__SERVICE__GRPC_PORT: ${QDRANT_GRPC_PORT}
+      QDRANT__STORAGE__STORAGE_PATH: ${QDRANT_STORAGE_PATH}
+      QDRANT__LOG_LEVEL: ${QDRANT_LOG_LEVEL}
     volumes:
       - qdrant_data:/qdrant/storage
       - ./config/qdrant/config.yaml:/qdrant/config/production.yaml:ro
