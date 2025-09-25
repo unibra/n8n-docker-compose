@@ -52,10 +52,7 @@ check_dependencies() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null && ! command -v docker &> /dev/null; then
-        print_error "Docker Compose não está disponível. Verifique sua instalação do Docker."
-        exit 1
-    fi
+    # A detecção do Docker Compose é feita na função detect_docker_compose()
     
     print_message "✅ Dependências verificadas com sucesso"
 }
@@ -178,6 +175,9 @@ init_database() {
 # Função principal de setup
 main() {
     print_message "=== CONFIGURAÇÃO N8N PRODUÇÃO ==="
+    
+    # Detectar comando Docker Compose PRIMEIRO
+    detect_docker_compose
     
     check_dependencies
     create_directories
