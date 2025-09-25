@@ -6,6 +6,11 @@
 
 set -e
 
+# Debug inicial
+echo "🚀 Script iniciado..."
+echo "Diretório atual: $(pwd)"
+echo "Usuário: $(whoami)"
+
 # Cores para output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -38,9 +43,23 @@ ENV_FILE=".env"
 check_env_variables() {
     print_message "Verificando variáveis de ambiente..."
     
+    # Debug
+    echo "Verificando arquivo .env..."
+    if [[ -f "$ENV_FILE" ]]; then
+        echo "Arquivo .env encontrado"
+    else
+        echo "Arquivo .env NÃO encontrado em: $ENV_FILE"
+    fi
+    
     # Carregar arquivo .env se existir
     if [[ -f "$ENV_FILE" ]]; then
+        echo "Carregando variáveis do .env..."
+        set +e  # Desabilitar exit on error temporariamente
         source "$ENV_FILE"
+        set -e  # Reabilitar exit on error
+        echo "Variáveis carregadas"
+    else
+        echo "Arquivo .env não encontrado!"
     fi
     
     if [[ -z "$CLOUDFLARE_API_TOKEN" ]] || [[ "$CLOUDFLARE_API_TOKEN" == "your-cloudflare-api-token-here" ]]; then
@@ -452,12 +471,16 @@ show_final_info() {
 
 # Função principal
 main() {
+    echo "=== INICIANDO FUNÇÃO PRINCIPAL ==="
     print_message "=== CONFIGURAÇÃO CLOUDFLARE TUNNEL ==="
     echo
     
+    echo "Chamando check_env_variables..."
     # Verificar variáveis de ambiente
     check_env_variables
+    echo "check_env_variables concluída"
     
+    echo "Chamando check_cloudflared..."
     # Verificar pré-requisitos
     if ! check_cloudflared; then
         print_warning "Cloudflared precisa ser instalado primeiro"
@@ -501,5 +524,8 @@ main() {
 
 # Executar apenas se chamado diretamente
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "Script chamado diretamente, executando main..."
     main "$@"
+else
+    echo "Script sendo sourced, não executando main"
 fi
