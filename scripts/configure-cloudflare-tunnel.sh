@@ -296,7 +296,7 @@ update_env_file() {
     
     # Atualizar token
     if grep -q "CLOUDFLARE_TUNNEL_TOKEN=" "$ENV_FILE"; then
-        sed -i.bak "s/^CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$token/" "$ENV_FILE"
+        sed -i.bak "s#^CLOUDFLARE_TUNNEL_TOKEN=.*#CLOUDFLARE_TUNNEL_TOKEN=$token#" "$ENV_FILE"
         rm -f "${ENV_FILE}.bak"
     else
         echo "CLOUDFLARE_TUNNEL_TOKEN=$token" >> "$ENV_FILE"
